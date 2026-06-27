@@ -1,0 +1,10 @@
+# Python virtual environment
+venv/
+__pycache__/
+*.pyc
+
+# Environment variables (Rahasia API Key)
+.env
+
+# Temporary audio files
+temp_audio.*

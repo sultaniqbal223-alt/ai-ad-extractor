@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Marketing Ad-Angle Extractor</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans">
+    <div class="max-w-4xl mx-auto px-4 py-10">
+        <header class="text-center mb-10">
+            <h1 class="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">AI Competitor Ad-Angle Extractor</h1>
+            <p class="text-slate-400 mt-2">Bedah landing page atau video iklan kompetitor, lalu generate 5 naskah hook baru dalam hitungan detik.</p>
+        </header>
+
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl">
+            <form id="analyzeForm" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-semibold text-slate-300 mb-2">Pilih Sumber Data Kompetitor:</label>
+                    <div class="grid grid-cols-3 gap-3">
+                        <label class="border border-slate-700 rounded-lg p-3 flex items-center justify-center cursor-pointer hover:bg-slate-800 has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-950/30">
+                            <input type="radio" name="input_type" value="url_video" checked class="hidden">
+                            <span class="text-sm font-medium">Link Video (YT/TikTok)</span>
+                        </label>
+                        <label class="border border-slate-700 rounded-lg p-3 flex items-center justify-center cursor-pointer hover:bg-slate-800 has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-950/30">
+                            <input type="radio" name="input_type" value="url_lp" class="hidden">
+                            <span class="text-sm font-medium">Link Landing Page</span>
+                        </label>
+                        <label class="border border-slate-700 rounded-lg p-3 flex items-center justify-center cursor-pointer hover:bg-slate-800 has-[:checked]:border-cyan-500 has-[:checked]:bg-cyan-950/30">
+                            <input type="radio" name="input_type" value="manual" class="hidden">
+                            <span class="text-sm font-medium">Copy-Paste Teks</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div>
+                    <label id="inputLabel" class="block text-sm font-semibold text-slate-300 mb-2">Masukkan URL Video:</label>
+                    <textarea id="inputValue" name="input_value" rows="3" placeholder="https://www.youtube.com/shorts/..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-slate-200 focus:outline-none focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500 transition"></textarea>
+                </div>
+
+                <button type="submit" class="w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold py-3.5 px-4 rounded-xl shadow-lg shadow-cyan-500/10 transition active:scale-[0.98]">
+                    Ekstrak & Analisis Sekarang
+                </button>
+            </form>
+        </div>
+
+        <!-- LOADING SPINNER -->
+        <div id="loading" class="hidden text-center my-12">
+            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-cyan-500 border-t-transparent mb-3"></div>
+            <p class="text-slate-400 text-sm animate-pulse">Sedang memproses... (Whisper lokal membutuhkan waktu ekstra jika membaca video)</p>
+        </div>
+
+        <!-- ERROR MESSAGE -->
+        <div id="errorMessage" class="hidden bg-red-950/40 border border-red-800 text-red-200 p-4 rounded-xl my-6 text-sm"></div>
+
+        <!-- RESULTS SECTION -->
+        <div id="resultSection" class="hidden space-y-6 my-10">
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6">
+                <h3 class="text-lg font-bold text-slate-400 mb-3 uppercase tracking-wider">Teks Sumber Mentah</h3>
+                <div id="rawTextContainer" class="bg-slate-950 p-4 rounded-xl text-sm text-slate-400 max-h-40 overflow-y-auto italic"></div>
+            </div>
+            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-6 prose prose-invert max-w-none">
+                <div id="analysisContainer" class="text-slate-200 space-y-4"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mengubah placeholder & label sesuai pilihan radio button
+        const radioButtons = document.querySelectorAll('input[name="input_type"]');
+        const inputLabel = document.getElementById('inputLabel');
+        const inputValue = document.getElementById('inputValue');
+
+        radioButtons.forEach(radio => {
+            radio.addEventListener('change', (e) => {
+                if (e.target.value === 'url_video') {
+                    inputLabel.innerText = "Masukkan URL Video:";
+                    inputValue.placeholder = "https://www.youtube.com/shorts/...";
+                } else if (e.target.value === 'url_lp') {
+                    inputLabel.innerText = "Masukkan URL Landing Page:";
+                    inputValue.placeholder = "https://namawebsitekompetitor.com/produk";
+                } else {
+                    inputLabel.innerText = "Copy-Paste Semua Teks Iklan/Web Di Sini:";
+                    inputValue.placeholder = "Masukkan teks iklan mentah hasil copy-paste...";
+                }
+            });
+        });
+
+        // Handle form submission via AJAX
+        document.getElementById('analyzeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const loading = document.getElementById('loading');
+            const errorDiv = document.getElementById('errorMessage');
+            const resultSection = document.getElementById('resultSection');
+            
+            loading.classList.remove('hidden');
+            errorDiv.classList.add('hidden');
+            resultSection.classList.add('hidden');
+
+            const formData = new FormData(e.target);
+
+            try {
+                const response = await fetch('/analyze', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Terjadi kesalahan sistem.');
+                }
+
+                document.getElementById('rawTextContainer').innerText = data.raw_text;
+                document.getElementById('analysisContainer').innerHTML = marked.parse(data.analysis);
+                resultSection.classList.remove('hidden');
+            } catch (err) {
+                errorDiv.innerText = err.message;
+                errorDiv.classList.remove('hidden');
+            } finally {
+                loading.classList.add('hidden');
+            }
+        });
+    </script>
+</body>
+</html>
